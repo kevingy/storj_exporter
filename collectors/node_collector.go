@@ -22,61 +22,61 @@ func NewNodeCollector(clients []*api.ApiClient) *NodeCollector {
 			"nodeInfo": prometheus.NewDesc(
 				"storj_node_info",
 				"Storj node info",
-				[]string{"node_id", "wallet", "version", "configured_port"},
+				[]string{"node_id", "node_name", "wallet", "version", "configured_port"},
 				nil,
 			),
 			"satelliteStorageUsed": prometheus.NewDesc(
 				"storj_satellite_storage_used_bytes",
 				"Storage used per satellite",
-				[]string{"node_id", "satellite_id", "satellite_url"},
+				[]string{"node_id", "node_name", "satellite_id", "satellite_url"},
 				nil,
 			),
 			"diskSpace": prometheus.NewDesc(
 				"storj_disk_space_bytes",
 				"Storj disk space metrics",
-				[]string{"node_id", "type"},
+				[]string{"node_id", "node_name", "type"},
 				nil,
 			),
 			"bandwidth": prometheus.NewDesc(
 				"storj_bandwidth_bytes",
 				"Storj bandwidth metrics",
-				[]string{"node_id", "type"},
+				[]string{"node_id", "node_name", "type"},
 				nil,
 			),
 			"lastPinged": prometheus.NewDesc(
 				"storj_last_pinged_timestamp",
 				"Timestamp of last ping",
-				[]string{"node_id"},
+				[]string{"node_id", "node_name"},
 				nil,
 			),
 			"nodeStarted": prometheus.NewDesc(
 				"storj_node_started_timestamp",
 				"Timestamp when the node was started",
-				[]string{"node_id"},
+				[]string{"node_id", "node_name"},
 				nil,
 			),
 			"lastQuicPinged": prometheus.NewDesc(
 				"storj_last_quic_pinged_timestamp",
 				"Timestamp of last QUIC ping",
-				[]string{"node_id"},
+				[]string{"node_id", "node_name"},
 				nil,
 			),
 			"nodeUpToDate": prometheus.NewDesc(
 				"storj_node_up_to_date",
 				"Indicates if the node is up to date",
-				[]string{"node_id"},
+				[]string{"node_id", "node_name"},
 				nil,
 			),
 			"quicStatus": prometheus.NewDesc(
 				"storj_quic_status",
 				"QUIC status of the node",
-				[]string{"node_id", "status"},
+				[]string{"node_id", "node_name", "status"},
 				nil,
 			),
 			"satelliteStatus": prometheus.NewDesc(
 				"storj_satellite_status",
 				"Status of the satellite",
-				[]string{"node_id", "satellite_id", "satellite_url", "status"},
+				[]string{"node_id", "node_name", "satellite_id", "satellite_url", "status"},
 				nil,
 			),
 		},
@@ -97,43 +97,45 @@ func (c *NodeCollector) Collect(ch chan<- prometheus.Metric) {
 			continue
 		}
 
-		c.collectNodeInfo(ch, client.NodeID, &node)
-		c.collectSatelliteMetrics(ch, client.NodeID, &node)
-		c.collectDiskSpaceMetrics(ch, client.NodeID, &node)
-		c.collectBandwidthMetrics(ch, client.NodeID, &node)
-		c.collectTimeMetrics(ch, client.NodeID, &node)
-		c.collectStatusMetrics(ch, client.NodeID, &node)
+		c.collectNodeInfo(ch, client.NodeID, client.NodeName, &node)
+		c.collectSatelliteMetrics(ch, client.NodeID, client.NodeName, &node)
+		c.collectDiskSpaceMetrics(ch, client.NodeID, client.NodeName, &node)
+		c.collectBandwidthMetrics(ch, client.NodeID, client.NodeName, &node)
+		c.collectTimeMetrics(ch, client.NodeID, client.NodeName, &node)
+		c.collectStatusMetrics(ch, client.NodeID, client.NodeName, &node)
 	}
 }
 
-func (c *NodeCollector) collectNodeInfo(ch chan<- prometheus.Metric, nodeID string, node *models.NodeData) {
+func (c *NodeCollector) collectNodeInfo(ch chan<- prometheus.Metric, nodeID, nodeName string, node *models.NodeData) {
 	ch <- prometheus.MustNewConstMetric(
 		c.metrics["nodeInfo"],
 		prometheus.GaugeValue,
 		1,
 		nodeID,
+		nodeName,
 		node.Wallet,
 		node.Version,
 		node.ConfiguredPort,
 	)
 }
 
-func (c *NodeCollector) collectSatelliteMetrics(ch chan<- prometheus.Metric, nodeID string, node *models.NodeData) {
+func (c *NodeCollector) collectSatelliteMetrics(ch chan<- prometheus.Metric, nodeID, nodeName string, node *models.NodeData) {
 	for _, satellite := range node.Satellites {
 		ch <- prometheus.MustNewConstMetric(
 			c.metrics["satelliteStorageUsed"],
 			prometheus.GaugeValue,
 			float64(satellite.CurrentStorageUsed),
 			nodeID,
+			nodeName,
 			satellite.ID,
 			satellite.URL,
 		)
 
-		c.collectSatelliteStatus(ch, nodeID, &satellite)
+		c.collectSatelliteStatus(ch, nodeID, nodeName, &satellite)
 	}
 }
 
-func (c *NodeCollector) collectSatelliteStatus(ch chan<- prometheus.Metric, nodeID string, satellite *models.Satellite) {
+func (c *NodeCollector) collectSatelliteStatus(ch chan<- prometheus.Metric, nodeID, nodeName string, satellite *models.Satellite) {
 	statuses := map[string]float64{"active": 1, "disqualified": 0, "suspended": 0}
 
 	if satellite.Disqualified != nil {
@@ -150,6 +152,7 @@ func (c *NodeCollector) collectSatelliteStatus(ch chan<- prometheus.Metric, node
 			prometheus.GaugeValue,
 			value,
 			nodeID,
+			nodeName,
 			satellite.ID,
 			satellite.URL,
 			status,
@@ -157,37 +160,38 @@ func (c *NodeCollector) collectSatelliteStatus(ch chan<- prometheus.Metric, node
 	}
 }
 
-func (c *NodeCollector) collectDiskSpaceMetrics(ch chan<- prometheus.Metric, nodeID string, node *models.NodeData) {
+func (c *NodeCollector) collectDiskSpaceMetrics(ch chan<- prometheus.Metric, nodeID, nodeName string, node *models.NodeData) {
 	diskSpace := node.DiskSpace
-	ch <- prometheus.MustNewConstMetric(c.metrics["diskSpace"], prometheus.GaugeValue, float64(diskSpace.Used), nodeID, "used")
-	ch <- prometheus.MustNewConstMetric(c.metrics["diskSpace"], prometheus.GaugeValue, float64(diskSpace.Available), nodeID, "available")
-	ch <- prometheus.MustNewConstMetric(c.metrics["diskSpace"], prometheus.GaugeValue, float64(diskSpace.Trash), nodeID, "trash")
-	ch <- prometheus.MustNewConstMetric(c.metrics["diskSpace"], prometheus.GaugeValue, float64(diskSpace.Overused), nodeID, "overused")
+	ch <- prometheus.MustNewConstMetric(c.metrics["diskSpace"], prometheus.GaugeValue, float64(diskSpace.Used), nodeID, nodeName, "used")
+	ch <- prometheus.MustNewConstMetric(c.metrics["diskSpace"], prometheus.GaugeValue, float64(diskSpace.Available), nodeID, nodeName, "available")
+	ch <- prometheus.MustNewConstMetric(c.metrics["diskSpace"], prometheus.GaugeValue, float64(diskSpace.Trash), nodeID, nodeName, "trash")
+	ch <- prometheus.MustNewConstMetric(c.metrics["diskSpace"], prometheus.GaugeValue, float64(diskSpace.Overused), nodeID, nodeName, "overused")
 }
 
-func (c *NodeCollector) collectBandwidthMetrics(ch chan<- prometheus.Metric, nodeID string, node *models.NodeData) {
+func (c *NodeCollector) collectBandwidthMetrics(ch chan<- prometheus.Metric, nodeID, nodeName string, node *models.NodeData) {
 	bandwidth := node.Bandwidth
-	ch <- prometheus.MustNewConstMetric(c.metrics["bandwidth"], prometheus.GaugeValue, float64(bandwidth.Used), nodeID, "used")
-	ch <- prometheus.MustNewConstMetric(c.metrics["bandwidth"], prometheus.GaugeValue, float64(bandwidth.Available), nodeID, "available")
+	ch <- prometheus.MustNewConstMetric(c.metrics["bandwidth"], prometheus.GaugeValue, float64(bandwidth.Used), nodeID, nodeName, "used")
+	ch <- prometheus.MustNewConstMetric(c.metrics["bandwidth"], prometheus.GaugeValue, float64(bandwidth.Available), nodeID, nodeName, "available")
 }
 
-func (c *NodeCollector) collectTimeMetrics(ch chan<- prometheus.Metric, nodeID string, node *models.NodeData) {
+func (c *NodeCollector) collectTimeMetrics(ch chan<- prometheus.Metric, nodeID, nodeName string, node *models.NodeData) {
 	lastPinged, _ := time.Parse(time.RFC3339Nano, node.LastPinged)
-	ch <- prometheus.MustNewConstMetric(c.metrics["lastPinged"], prometheus.GaugeValue, float64(lastPinged.Unix()), nodeID)
+	ch <- prometheus.MustNewConstMetric(c.metrics["lastPinged"], prometheus.GaugeValue, float64(lastPinged.Unix()), nodeID, nodeName)
 
 	startedAt, _ := time.Parse(time.RFC3339Nano, node.StartedAt)
-	ch <- prometheus.MustNewConstMetric(c.metrics["nodeStarted"], prometheus.GaugeValue, float64(startedAt.Unix()), nodeID)
+	ch <- prometheus.MustNewConstMetric(c.metrics["nodeStarted"], prometheus.GaugeValue, float64(startedAt.Unix()), nodeID, nodeName)
 
 	lastQuicPinged, _ := time.Parse(time.RFC3339Nano, node.LastQuicPingedAt)
-	ch <- prometheus.MustNewConstMetric(c.metrics["lastQuicPinged"], prometheus.GaugeValue, float64(lastQuicPinged.Unix()), nodeID)
+	ch <- prometheus.MustNewConstMetric(c.metrics["lastQuicPinged"], prometheus.GaugeValue, float64(lastQuicPinged.Unix()), nodeID, nodeName)
 }
 
-func (c *NodeCollector) collectStatusMetrics(ch chan<- prometheus.Metric, nodeID string, node *models.NodeData) {
+func (c *NodeCollector) collectStatusMetrics(ch chan<- prometheus.Metric, nodeID, nodeName string, node *models.NodeData) {
 	ch <- prometheus.MustNewConstMetric(
 		c.metrics["nodeUpToDate"],
 		prometheus.GaugeValue,
 		boolToFloat64(node.UpToDate),
 		nodeID,
+		nodeName,
 	)
 
 	ch <- prometheus.MustNewConstMetric(
@@ -195,6 +199,7 @@ func (c *NodeCollector) collectStatusMetrics(ch chan<- prometheus.Metric, nodeID
 		prometheus.GaugeValue,
 		1,
 		nodeID,
+		nodeName,
 		node.QuicStatus,
 	)
 }

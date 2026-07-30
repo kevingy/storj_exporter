@@ -11,28 +11,30 @@ import (
 
 type ApiClient struct {
 	BaseURL    string
-	NodeID	 string
-	Satellites      []models.Satellite
+	NodeID     string
+	NodeName   string
+	Satellites []models.Satellite
 	httpClient *http.Client
 }
 
-func NewApiClient(baseURL string) (*ApiClient) {
-    client := &ApiClient{
-        BaseURL: baseURL,
-        httpClient: &http.Client{
-            Timeout: time.Second * 10,
-        },
-    }
+func NewApiClient(baseURL, nodeName string) *ApiClient {
+	client := &ApiClient{
+		BaseURL:  baseURL,
+		NodeName: nodeName,
+		httpClient: &http.Client{
+			Timeout: time.Second * 10,
+		},
+	}
 
-    nodeData, err := client.Node()
-    if err != nil {
+	nodeData, err := client.Node()
+	if err != nil {
 		panic(fmt.Sprintf("failed to make initial connection to node %s: %v", baseURL, err))
-    }
+	}
 
-    client.NodeID = nodeData.NodeID
+	client.NodeID = nodeData.NodeID
 	client.Satellites = nodeData.Satellites
 
-    return client
+	return client
 }
 
 func (c *ApiClient) get(endpoint string, target interface{}) error {
