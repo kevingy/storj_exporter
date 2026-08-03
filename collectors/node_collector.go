@@ -97,12 +97,18 @@ func (c *NodeCollector) Collect(ch chan<- prometheus.Metric) {
 			continue
 		}
 
-		c.collectNodeInfo(ch, client.NodeID, client.NodeName, &node)
-		c.collectSatelliteMetrics(ch, client.NodeID, client.NodeName, &node)
-		c.collectDiskSpaceMetrics(ch, client.NodeID, client.NodeName, &node)
-		c.collectBandwidthMetrics(ch, client.NodeID, client.NodeName, &node)
-		c.collectTimeMetrics(ch, client.NodeID, client.NodeName, &node)
-		c.collectStatusMetrics(ch, client.NodeID, client.NodeName, &node)
+		// Ensure nodeName is never empty to avoid label cardinality issues
+		nodeName := client.NodeName
+		if nodeName == "" {
+			nodeName = client.NodeID
+		}
+
+		c.collectNodeInfo(ch, client.NodeID, nodeName, &node)
+		c.collectSatelliteMetrics(ch, client.NodeID, nodeName, &node)
+		c.collectDiskSpaceMetrics(ch, client.NodeID, nodeName, &node)
+		c.collectBandwidthMetrics(ch, client.NodeID, nodeName, &node)
+		c.collectTimeMetrics(ch, client.NodeID, nodeName, &node)
+		c.collectStatusMetrics(ch, client.NodeID, nodeName, &node)
 	}
 }
 

@@ -96,20 +96,31 @@ func (c *PayoutCollector) Collect(ch chan<- prometheus.Metric) {
 			continue
 		}
 
-		c.collectPayoutMetrics(ch, client.NodeID, client.NodeName, payoutData.CurrentMonth, "current")
-		c.collectPayoutMetrics(ch, client.NodeID, client.NodeName, payoutData.PreviousMonth, "previous")
+		// Ensure nodeName is never empty to avoid label cardinality issues
+		nodeName := client.NodeName
+		if nodeName == "" {
+			nodeName = client.NodeID
+		}
+
+		c.collectPayoutMetrics(ch, client.NodeID, nodeName, payoutData.CurrentMonth, "current")
+		c.collectPayoutMetrics(ch, client.NodeID, nodeName, payoutData.PreviousMonth, "previous")
 
 		ch <- prometheus.MustNewConstMetric(
 			c.metrics["currentMonthExpectations"],
 			prometheus.GaugeValue,
 			float64(payoutData.CurrentMonthExpectations),
 			client.NodeID,
-			client.NodeName,
+			nodeName,
 		)
 	}
 }
 
 func (c *PayoutCollector) collectPayoutMetrics(ch chan<- prometheus.Metric, nodeID string, nodeName string, data models.PayoutData, period string) {
+	// Ensure nodeName is never empty to avoid label cardinality issues
+	if nodeName == "" {
+		nodeName = nodeID
+	}
+
 	metrics := map[string]float64{
 		"egressBandwidth":         float64(data.EgressBandwidth),
 		"egressBandwidthPayout":   float64(data.EgressBandwidthPayout),
