@@ -2,6 +2,50 @@
 
 A Go-based exporter to pull information from Storj node APIs and export it for Prometheus monitoring. Supports monitoring multiple nodes, with each metric labeled by `node_id` and `node_name`.
 
+## Building from Source
+
+### Prerequisites
+
+- [Go 1.21+](https://go.dev/dl/)
+
+### Build
+
+```sh
+git clone https://github.com/akash329d/storj_exporter.git
+cd storj_exporter
+go build -o storj_exporter .
+```
+
+## Running Without Docker
+
+### Using Environment Variables
+
+```sh
+STORJ_NODE_1_URL=http://192.168.1.10:14002 ./storj_exporter
+```
+
+To monitor multiple nodes:
+
+```sh
+STORJ_NODE_1_URL=http://192.168.1.10:14002 \
+STORJ_NODE_2_URL=http://192.168.1.11:14002 \
+./storj_exporter
+```
+
+Set a custom metrics port with `EXPORTER_PORT` (default: `8000`):
+
+```sh
+EXPORTER_PORT=9000 STORJ_NODE_1_URL=http://192.168.1.10:14002 ./storj_exporter
+```
+
+### Using a Configuration File
+
+```sh
+./storj_exporter --config nodes.yaml
+```
+
+See the [Configuration File](#configuration-file-multi-node) section below for file format examples.
+
 ## Docker Usage
 
 ### Docker Hub Repository
@@ -54,13 +98,7 @@ nodes:
 
 > When `name` is omitted, it defaults to `host:port` derived from the URL.
 
-### Running with a Config File
-
-```sh
-./storj_exporter --config nodes.yaml
-```
-
-Or with Docker:
+### Running with a Config File (Docker)
 
 ```sh
 docker run -d \
