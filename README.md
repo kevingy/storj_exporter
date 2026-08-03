@@ -1,6 +1,50 @@
 # Storj Exporter for Prometheus
 
-A Go-based exporter to pull information from Storj node APIs and export it for Prometheus monitoring. Supports monitoring multiple nodes, with each metric labeled by `node_id`. 
+A Go-based exporter to pull information from Storj node APIs and export it for Prometheus monitoring. Supports monitoring multiple nodes, with each metric labeled by `node_id` and `node_name`.
+
+## Building from Source
+
+### Prerequisites
+
+- [Go 1.21+](https://go.dev/dl/)
+
+### Build
+
+```sh
+git clone https://github.com/akash329d/storj_exporter.git
+cd storj_exporter
+go build -o storj_exporter .
+```
+
+## Running Without Docker
+
+### Using Environment Variables
+
+```sh
+STORJ_NODE_1_URL=http://192.168.1.10:14002 ./storj_exporter
+```
+
+To monitor multiple nodes:
+
+```sh
+STORJ_NODE_1_URL=http://192.168.1.10:14002 \
+STORJ_NODE_2_URL=http://192.168.1.11:14002 \
+./storj_exporter
+```
+
+Set a custom metrics port with `EXPORTER_PORT` (default: `8000`):
+
+```sh
+EXPORTER_PORT=9000 STORJ_NODE_1_URL=http://192.168.1.10:14002 ./storj_exporter
+```
+
+### Using a Configuration File
+
+```sh
+./storj_exporter --config nodes.yaml
+```
+
+See the [Configuration File](#configuration-file-multi-node) section below for file format examples.
 
 ## Docker Usage
 
@@ -20,10 +64,49 @@ docker run -d \
 
 ### Docker Parameters
 
-| Parameter         | Description                                    | Default Value |
-|-------------------|------------------------------------------------|---------------|
-| `EXPORTER_PORT`   | Port for the metrics server.                   | 8000          |
-| `STORJ_NODE_%d_URL` | URL of a Storj node (replace %d with a sequential number starting at 1)           | N/A           |
+| Parameter           | Description                                                                         | Default Value |
+|---------------------|-------------------------------------------------------------------------------------|---------------|
+| `EXPORTER_PORT`     | Port for the metrics server.                                                        | 8000          |
+| `STORJ_NODE_%d_URL` | URL of a Storj node (replace `%d` with a sequential number starting at 1)          | N/A           |
+
+## Configuration File (Multi-Node)
+
+Instead of environment variables, you can use a JSON or YAML configuration file to define multiple nodes with optional friendly names. Pass the file path via the `--config` flag.
+
+### JSON Example (`nodes.json`)
+
+```json
+{
+  "nodes": [
+    { "url": "http://192.168.1.10:14002", "name": "node-1" },
+    { "url": "http://192.168.1.11:14002", "name": "node-2" },
+    { "url": "http://192.168.1.12:14002" }
+  ]
+}
+```
+
+### YAML Example (`nodes.yaml`)
+
+```yaml
+nodes:
+  - url: "http://192.168.1.10:14002"
+    name: "node-1"
+  - url: "http://192.168.1.11:14002"
+    name: "node-2"
+  - url: "http://192.168.1.12:14002"
+```
+
+> When `name` is omitted, it defaults to `host:port` derived from the URL.
+
+### Running with a Config File (Docker)
+
+```sh
+docker run -d \
+  --name=StorjExporter \
+  -v /path/to/nodes.yaml:/etc/storj/nodes.yaml \
+  -p 8000:8000 \
+  akash329d/storj_exporter --config /etc/storj/nodes.yaml
+```
 
 ## Accessing Metrics
 
