@@ -52,7 +52,7 @@ func Load(path string) (*Config, error) {
 		return nil, err
 	}
 
-	applyDefaults(&cfg)
+	ApplyDefaults(&cfg)
 	return &cfg, nil
 }
 
@@ -66,9 +66,9 @@ func validate(cfg *Config, path string) error {
 	return nil
 }
 
-// applyDefaults fills in the Name field for nodes where it was omitted,
+// ApplyDefaults fills in the Name field for nodes where it was omitted,
 // deriving the name from the URL host and port (e.g. "192.168.1.10:14002").
-func applyDefaults(cfg *Config) {
+func ApplyDefaults(cfg *Config) {
 	for i := range cfg.Nodes {
 		if strings.TrimSpace(cfg.Nodes[i].Name) != "" {
 			continue
